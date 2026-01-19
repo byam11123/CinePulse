@@ -3,6 +3,7 @@ import HomePage from "./pages/home/HomePage.tsx";
 import WatchPage from "./pages/WatchPage.tsx";
 import LoginPage from "./pages/LoginPage.tsx";
 import SignUpPage from "./pages/SignUpPage.tsx";
+import SearchPage from "./pages/SearchPage.tsx";
 import Footer from "./components/Footer.tsx";
 import { Toaster } from "react-hot-toast";
 import { useAuthStore } from "./store/authUser.js";
@@ -40,6 +41,10 @@ function App() {
         <Route
           path="/watch/:id"
           element={user ? <WatchPage /> : <Navigate to={"/login"} />}
+        />{" "}
+        <Route
+          path="/search"
+          element={user ? <SearchPage /> : <Navigate to={"/login"} />}
         />
       </Routes>
       <Footer></Footer>

@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import HomePage from "./pages/home/HomePage.tsx";
+import WatchPage from "./pages/WatchPage.tsx";
 import LoginPage from "./pages/LoginPage.tsx";
 import SignUpPage from "./pages/SignUpPage.tsx";
 import Footer from "./components/Footer.tsx";
@@ -35,6 +36,10 @@ function App() {
         <Route
           path="/signup"
           element={!user ? <SignUpPage /> : <Navigate to={"/"} />}
+        />
+        <Route
+          path="/watch/:id"
+          element={user ? <WatchPage /> : <Navigate to={"/login"} />}
         />
       </Routes>
       <Footer></Footer>

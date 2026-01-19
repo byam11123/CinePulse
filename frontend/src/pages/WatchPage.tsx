@@ -1,10 +1,18 @@
 import axios from "axios";
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import { useState } from "react";
 import { useParams } from "react-router-dom";
 import { useContentStore } from "../store/content.js";
 import Navbar from "../components/Navbar";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { Link } from "react-router-dom";
+import {
+  ORIGINAL_IMG_BASE_URL,
+  SMALL_IMG_BASE_URL,
+} from "../utils/constant.js";
+import { formatReleaseDate } from "../utils/dateFunction.js";
+import WatchPageSkeleton from "../components/skeletons/WatchPageSkeleton.js";
+
 const WatchPage = () => {
   const { id } = useParams();
   const [trailers, setTrailers] = useState([]);
@@ -16,16 +24,12 @@ const WatchPage = () => {
   const [similarContent, setSimilarContent] = useState([]);
   const { contentType } = useContentStore();
 
+  const sliderRef = useRef(null);
+
   useEffect(() => {
     const getTrailers = async () => {
       try {
-        console.log(`Fetching trailers for ${contentType}/${id}`);
-        console.log(
-          "Base URL for request:",
-          `/api/v1/${contentType}/${id}/trailers`
-        );
         const res = await axios.get(`/api/v1/${contentType}/${id}/trailers`);
-        console.log("Full trailers response:", res.data);
         if (res.data.trailers && Array.isArray(res.data.trailers)) {
           // Filter only YouTube trailers that are official and allow embedding
           const youtubeTrailers = res.data.trailers.filter(
@@ -38,7 +42,6 @@ const WatchPage = () => {
               !trailer.name.toLowerCase().includes("deleted") && // Exclude deleted videos
               !trailer.name.toLowerCase().includes("removed") // Exclude removed videos
           );
-          console.log("Filtered YouTube trailers:", youtubeTrailers);
           setTrailers(youtubeTrailers);
 
           // If we have valid trailers, reset the index and error state
@@ -48,15 +51,9 @@ const WatchPage = () => {
             setPlayerKey((prev) => prev + 1);
           }
         } else {
-          console.log("Trailers is not an array or is null");
           setTrailers([]);
         }
       } catch (error) {
-        console.error("Error fetching trailers:", error);
-        console.error(
-          "Error details:",
-          error.response || error.message || error
-        );
         if (error.message.includes("404")) {
           setTrailers([]);
         } else {
@@ -100,7 +97,7 @@ const WatchPage = () => {
     if (currentTrailersIdx < trailers.length - 1) {
       setCurrentTrailerIdx(currentTrailersIdx + 1);
       setVideoError(false); // Reset video error when changing videos
-      setPlayerKey((prev) => prev + 1); // Force remount of ReactPlayer
+      setPlayerKey((prev) => prev + 1); // Force remount of iframe
     }
   };
 
@@ -108,13 +105,46 @@ const WatchPage = () => {
     if (currentTrailersIdx > 0) {
       setCurrentTrailerIdx(currentTrailersIdx - 1);
       setVideoError(false); // Reset video error when changing videos
-      setPlayerKey((prev) => prev + 1); // Force remount of ReactPlayer
+      setPlayerKey((prev) => prev + 1); // Force remount of iframe
     }
   };
 
-  console.log("Trailers:", trailers);
-  console.log("SimilarContent:", similarContent);
-  console.log("ContentDetails:", content);
+  const scrollLeft = () => {
+    if (sliderRef.current)
+      sliderRef.current.scrollBy({
+        left: -sliderRef.current.offsetWidth,
+        behavior: "smooth",
+      });
+  };
+  const scrollRight = () => {
+    if (sliderRef.current)
+      sliderRef.current.scrollBy({
+        left: sliderRef.current.offsetWidth,
+        behavior: "smooth",
+      });
+  };
+
+  if (loading)
+    return (
+      <div className="min-h-screen bg-black p-10">
+        <WatchPageSkeleton />
+      </div>
+    );
+
+  if (!content) {
+    return (
+      <div className="bg-black text-white h-screen">
+        <div className="max-w-6xl mx-auto">
+          <Navbar />
+          <div className="text-center mx-auto px-4 py-8 h-full mt-40">
+            <h2 className="text-2xl sm:text-5xl font-bold text-balance">
+              Content not found 😥
+            </h2>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-black min-h-screen text-white">
@@ -131,10 +161,9 @@ const WatchPage = () => {
             >
               <ChevronLeft size={24} />
             </button>
-            <div className="text-sm text-gray-300">
-              {currentTrailersIdx + 1} / {trailers.length} -{" "}
-              {trailers[currentTrailersIdx]?.name || "Trailer"}
-            </div>
+            {/* <div className="text-sm text-gray-300 max-w-[50%] truncate">
+              {content?.title || content?.name || "Movie/TV Show"}
+            </div> */}
             <button
               className={`bg-gray-500/70 hover:bg-gray-500 text-white py-2 px-4 rounded ${
                 currentTrailersIdx === trailers.length - 1
@@ -159,26 +188,14 @@ const WatchPage = () => {
                       width="100%"
                       height="100%"
                       src={`https://www.youtube.com/embed/${trailers[currentTrailersIdx].key}?rel=0&modestbranding=1&enablejsapi=1&autoplay=0`}
-                      title={
-                        trailers[currentTrailersIdx].name ||
-                        "YouTube video player"
-                      }
                       frameBorder="0"
                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                       allowFullScreen
                       className="rounded-lg overflow-hidden"
                       onError={() => {
-                        console.log(
-                          "Iframe failed to load video with key:",
-                          trailers[currentTrailersIdx].key
-                        );
                         setVideoError(true);
                       }}
                       onLoad={() => {
-                        console.log(
-                          "Iframe loaded video:",
-                          trailers[currentTrailersIdx].name
-                        );
                         setVideoError(false);
                       }}
                     />
@@ -216,10 +233,75 @@ const WatchPage = () => {
             )
           ) : (
             <div className="w-full h-full flex items-center justify-center bg-gray-900 rounded-lg">
-              <p className="text-gray-400">No trailers available</p>
+              <p className="text-gray-400">
+                No trailers available for {content?.title || content?.name}
+              </p>
             </div>
           )}
         </div>
+        {/* movie details */}
+        <div className="flex flex-col md:flex-row items-center justify-between gap-20 max-w-6xl mx-auto">
+          <div className="mb-4 md:mb-0">
+            <h2 className="text-5xl font-bold text-balance">
+              {content?.title || content?.name}
+            </h2>
+            <p className="mt-2 text-lg">
+              {formatReleaseDate(
+                content?.release_date || content?.first_air_date
+              )}{" "}
+              {content?.adult ? (
+                <span className="text-red-600">18+</span>
+              ) : (
+                <span className="text-green-600">PG-13</span>
+              )}{" "}
+            </p>
+            <p className="mt-4 text-lg">{content?.overview}</p>
+          </div>
+          <img
+            src={ORIGINAL_IMG_BASE_URL + content?.poster_path}
+            alt="Poster Image"
+            className="max-h-[600px] rounded-md"
+          />
+        </div>
+        {similarContent.length > 0 && (
+          <div className="mt-12 max-w-5xl mx-auto relative">
+            <div className="mb-4">
+              <h3 className="text-3xl font-bold">Similar Movies/Tv Show</h3>
+            </div>
+            <div
+              className="flex overflow-x-scroll scrollbar-hide gap-4 pb-4 group"
+              ref={sliderRef}
+            >
+              {similarContent.map((content) => {
+                if (content.poster_path === null) return null;
+                return (
+                  <Link
+                    key={content.id}
+                    to={`/watch/${content.id}`}
+                    className="w-52 flex-shrink-0"
+                  >
+                    <img
+                      src={SMALL_IMG_BASE_URL + content.poster_path}
+                      alt="Poster Path"
+                      className="w-full h-auto rounded-md"
+                    />
+                    <h4 className="mt-2 text-lg font-semibold">
+                      {content.title || content.name}
+                    </h4>
+                  </Link>
+                );
+              })}
+              <ChevronRight
+                className="absolute top-1/2 -translate-y-1/2 right-2 w-8 h-8 opacity-0 group-hover:opacity-100 transition-all duration-300 cursor-pointer bg-red-600 text-white rounded-full"
+                onClick={scrollRight}
+              />
+              <ChevronLeft
+                className="absolute top-1/2 -translate-y-1/2 left-2 w-8 h-8 opacity-0 group-hover:opacity-100 transition-all duration-300 cursor-pointer bg-red-600 text-white rounded-full"
+                onClick={scrollLeft}
+              />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

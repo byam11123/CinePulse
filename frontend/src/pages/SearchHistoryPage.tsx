@@ -1,8 +1,9 @@
 import axios from "axios";
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import Navbar from "../components/Navbar";
 import { Trash } from "lucide-react";
 import { SMALL_IMG_BASE_URL } from "../utils/constant.js";
+import toast from "react-hot-toast";
 
 function formatDate(dateString) {
   // Create a Date object from the input date string

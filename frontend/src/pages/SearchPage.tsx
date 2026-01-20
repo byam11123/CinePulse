@@ -27,7 +27,7 @@ const SearchPage = () => {
       console.error("Search error:", error);
       if (error.response?.status === 404) {
         toast.error(
-          "Nothing found, make sure you are searching under the right category"
+          "Nothing found, make sure you are searching under the right category",
         );
       } else {
         toast.error("An error occurred, please try again later");
@@ -103,8 +103,10 @@ const SearchPage = () => {
               <div key={result.id} className="bg-gray-800 p-4 rounded">
                 {activeTab === "person" ? (
                   <Link
-                    to={`/actor/${result.id}`}
-                    className="flex flex-col items-center"
+                    to={"/actor/" + result.id}
+                    onClick={() => {
+                      setContentType(activeTab);
+                    }}
                   >
                     <img
                       src={ORIGINAL_IMG_BASE_URL + result.profile_path}
@@ -114,7 +116,12 @@ const SearchPage = () => {
                     <h2 className="mt-2 text-xl font-bold">{result.name} </h2>
                   </Link>
                 ) : (
-                  <Link to={`/watch/${result.id}`}>
+                  <Link
+                    to={"/watch/" + result.id}
+                    onClick={() => {
+                      setContentType(activeTab);
+                    }}
+                  >
                     <img
                       src={ORIGINAL_IMG_BASE_URL + result.poster_path}
                       alt={result.title || result.name}

@@ -38,6 +38,10 @@ const SearchHistoryPage = () => {
   const [searchHistory, setSearchHistory] = useState<SearchEntry[]>([]);
 
   useEffect(() => {
+    document.title = "Cinepulse | Search History";
+  }, []);
+
+  useEffect(() => {
     const getSearchHistory = async () => {
       try {
         const res = await axios.get(`/api/v1/search/history`);

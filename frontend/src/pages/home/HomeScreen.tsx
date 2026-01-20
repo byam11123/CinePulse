@@ -9,12 +9,16 @@ import {
   TV_CATEGORIES,
 } from "../../utils/constant";
 import ContentSlider from "../../components/ContentSlider.tsx";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 const HomeScreen = () => {
   const { trendingContent } = useGetTrendingContent();
   const { contentType } = useContentStore();
   const [imgLoading, setImgLoading] = useState<boolean>(true);
+
+  useEffect(() => {
+    document.title = "Cinepulse | Home";
+  }, []);
 
   if (!trendingContent)
     return (

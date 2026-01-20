@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Navbar from "../components/Navbar";
 import { useContentStore } from "../store/content";
 import { Search } from "lucide-react";
@@ -13,6 +13,10 @@ const SearchPage = () => {
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [results, setResults] = useState<ContentItem[]>([]);
   const { setContentType } = useContentStore();
+
+  useEffect(() => {
+    document.title = "Cinepulse | Search";
+  }, []);
   const handleTabClick = (tab: string) => {
     setActiveTab(tab);
     setContentType(tab); // Set content type to the selected tab

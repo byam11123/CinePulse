@@ -1,6 +1,11 @@
+import { useEffect } from "react";
 import { Link } from "react-router-dom";
 
 const NotFoundPage = () => {
+  useEffect(() => {
+    document.title = "Cinepulse | Page Not Found";
+  }, []);
+
   return (
     <div
       className="min-h-screen bg-cover bg-center flex flex-col justify-center items-center text-white"

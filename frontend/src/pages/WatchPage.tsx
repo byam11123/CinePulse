@@ -27,6 +27,12 @@ const WatchPage = () => {
   const sliderRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    document.title = content?.title || content?.name ?
+      `Cinepulse | ${content.title || content.name}` :
+      `Cinepulse | ${contentType === "movie" ? "Movie" : "TV Show"}`;
+  }, [content, contentType]);
+
+  useEffect(() => {
     const getTrailers = async () => {
       try {
         const res = await axios.get(`/api/v1/${contentType}/${id}/trailers`);

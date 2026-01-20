@@ -1,10 +1,14 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuthStore } from "../store/authUser.js";
 
 const LoginPage = () => {
   const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("");
+
+  useEffect(() => {
+    document.title = "Cinepulse | Login";
+  }, []);
   const { login } = useAuthStore();
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();

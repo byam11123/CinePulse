@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuthStore } from "../store/authUser.js";
 
@@ -8,6 +8,10 @@ const SignUpPage = () => {
   const emailValue = url.searchParams.get("email");
 
   const [email, setEmail] = useState<string>(emailValue || "");
+
+  useEffect(() => {
+    document.title = "Cinepulse | Sign Up";
+  }, []);
   const [username, setUsername] = useState<string>("");
   const [password, setPassword] = useState<string>("");
 

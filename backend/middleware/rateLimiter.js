@@ -25,10 +25,10 @@ export const authRateLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-// API rate limiter for API endpoints
+// More lenient API rate limiter for API endpoints to avoid affecting user experience
 export const apiRateLimiter = rateLimit({
   windowMs: 1 * 60 * 1000, // 1 minute
-  max: 50, // Limit each IP to 50 requests per windowMs for API routes
+  max: 100, // Increased limit to avoid affecting normal user behavior
   message: {
     success: false,
     message: 'Too many API requests from this IP, please try again later.',

@@ -6,14 +6,14 @@ import {
   removeItemFromSearchHistory,
   getSearchHistory,
 } from "../controllers/search.controller.js";
-import { get } from "mongoose";
+import { apiRateLimiter } from "../middleware/rateLimiter.js";
 const router = express.Router();
 
-router.get("/person/:query", searchPerson);
-router.get("/movie/:query", searchMovie);
-router.get("/tv/:query", searchTv);
-router.get("/history", getSearchHistory);
+router.get("/person/:query", apiRateLimiter, searchPerson);
+router.get("/movie/:query", apiRateLimiter, searchMovie);
+router.get("/tv/:query", apiRateLimiter, searchTv);
+router.get("/history", apiRateLimiter, getSearchHistory);
 
-router.delete("/history/:id", removeItemFromSearchHistory);
+router.delete("/history/:id", apiRateLimiter, removeItemFromSearchHistory);
 
 export default router;

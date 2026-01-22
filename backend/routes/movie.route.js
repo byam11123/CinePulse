@@ -6,13 +6,14 @@ import {
   getSimiliarMovies,
   getCategoryMovies,
 } from "../controllers/movie.controller.js";
+import { apiRateLimiter } from "../middleware/rateLimiter.js";
 
 const router = express.Router();
 
-router.get("/trending", getTrendingMovie);
-router.get("/:id/trailers", getMovieTrailers);
-router.get("/:id/details", getMovieDetails);
-router.get("/:id/similar", getSimiliarMovies);
-router.get("/:category", getCategoryMovies);
+router.get("/trending", apiRateLimiter, getTrendingMovie);
+router.get("/:id/trailers", apiRateLimiter, getMovieTrailers);
+router.get("/:id/details", apiRateLimiter, getMovieDetails);
+router.get("/:id/similar", apiRateLimiter, getSimiliarMovies);
+router.get("/:category", apiRateLimiter, getCategoryMovies);
 
 export default router;

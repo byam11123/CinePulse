@@ -1,38 +1,28 @@
 import { User } from "../models/user.model.js";
 import bcrypt from "bcryptjs";
 import { generateTokenAndSetCookie } from "../utils/generateToken.js";
+import { ValidationError, InternalServerError } from "../utils/errors.js";
 
-export async function signup(req, res) {
+export async function signup(req, res, next) {
   try {
     const { username, email, password } = req.body;
     if (!username || !email || !password) {
-      return res
-        .status(400)
-        .json({ success: false, message: "All fields are required" });
+      throw new ValidationError("All fields are required");
     }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Invalid email format" });
+      throw new ValidationError("Invalid email format");
     }
     if (password.length < 6) {
-      return res.status(400).json({
-        success: false,
-        message: "Password must be at least 6 characters long",
-      });
+      throw new ValidationError("Password must be at least 6 characters long");
     }
     const existingUserByEmail = await User.findOne({ email });
     if (existingUserByEmail) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Email already in use" });
+      throw new ValidationError("Email already in use");
     }
     const existingUserByUsername = await User.findOne({ username });
     if (existingUserByUsername) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Username already exist" });
+      throw new ValidationError("Username already exist");
     }
 
     const PROFILE_PIC_URL = ["/avatar1.png", "/avatar2.png", "/avatar3.png"];
@@ -61,31 +51,25 @@ export async function signup(req, res) {
       },
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: "Server Error" });
+    next(error);
   }
 }
 
-export async function login(req, res) {
+export async function login(req, res, next) {
   try {
     const { email, password } = req.body;
     if (!email || !password) {
-      return res
-        .status(400)
-        .json({ success: false, message: "All fields are required" });
+      throw new ValidationError("All fields are required");
     }
 
     const user = await User.findOne({ email: email });
     if (!user) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Invalid credentials" });
+      throw new ValidationError("Invalid credentials");
     }
 
     const isPasswordCorrect = await bcrypt.compare(password, user.password);
     if (!isPasswordCorrect) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Invalid credentials" });
+      throw new ValidationError("Invalid credentials");
     }
     generateTokenAndSetCookie(user._id, res);
     res.status(200).json({
@@ -96,23 +80,23 @@ export async function login(req, res) {
       },
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: "Server Error" });
+    next(error);
   }
 }
 
-export async function logout(req, res) {
+export async function logout(req, res, next) {
   try {
     res.clearCookie("jwt-cinepulse");
     res.status(200).json({ success: true, message: "Logged out successfully" });
   } catch (error) {
-    res.status(500).json({ success: false, message: "Server Error" });
+    next(error);
   }
 }
 
-export async function authCheck(req, res) {
+export async function authCheck(req, res, next) {
   try {
     res.status(200).json({ success: true, user: req.user });
   } catch (error) {
-    res.status(500).json({ success: false, message: "Server Error" });
+    next(error);
   }
 }

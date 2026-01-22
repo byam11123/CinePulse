@@ -11,7 +11,8 @@ import { connectDB } from "./config/db.js";
 import cookieParser from "cookie-parser";
 import { protectRoute } from "./middleware/protectRoute.js";
 import { requestLogger } from "./middleware/requestLogger.js";
-import { generalRateLimiter, apiRateLimiter, authRateLimiter } from "./middleware/rateLimiter.js";
+import { apiRateLimiter, authRateLimiter } from "./middleware/rateLimiter.js";
+import { globalErrorHandler, notFoundHandler } from "./middleware/errorHandler.js";
 
 dotenv.config();
 
@@ -38,6 +39,12 @@ if (ENV_VARS.NODE_ENV === "production") {
     res.sendFile(path.resolve(__dirname, "frontend", "dist", "index.html"));
   });
 }
+
+// Catch-all route for undefined routes
+app.all('*', notFoundHandler);
+
+// Global error handler - this must be the last middleware
+app.use(globalErrorHandler);
 
 app.listen(PORT, () => {
   console.log(`Server running in ${ENV_VARS.NODE_ENV} mode on port ${PORT}`);

@@ -4,9 +4,10 @@ import {
   login,
   logout,
   signup,
-} from "../controllers/auth.controller.js";
-import { protectRoute } from "../middleware/protectRoute.js";
-import { authRateLimiter } from "../middleware/rateLimiter.js";
+} from "../../controllers/auth.controller.js";
+import { protectRoute } from "../../middleware/protectRoute.js";
+import { authRateLimiter } from "../../middleware/rateLimiter.js";
+// import { validate, schemas } from "../../middleware/validation.js"; // Temporarily commented out
 
 const router = express.Router();
 

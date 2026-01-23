@@ -5,8 +5,9 @@ import {
   searchTv,
   removeItemFromSearchHistory,
   getSearchHistory,
-} from "../controllers/search.controller.js";
-import { apiRateLimiter } from "../middleware/rateLimiter.js";
+} from "../../controllers/search.controller.js";
+import { apiRateLimiter } from "../../middleware/rateLimiter.js";
+// import { validate, schemas } from "../../middleware/validation.js"; // Temporarily commented out
 const router = express.Router();
 
 router.get("/person/:query", apiRateLimiter, searchPerson);

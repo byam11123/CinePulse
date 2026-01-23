@@ -5,8 +5,9 @@ import {
   getTrendingMovie,
   getSimiliarMovies,
   getCategoryMovies,
-} from "../controllers/movie.controller.js";
-import { apiRateLimiter } from "../middleware/rateLimiter.js";
+} from "../../controllers/movie.controller.js";
+import { apiRateLimiter } from "../../middleware/rateLimiter.js";
+// import { validate, schemas } from "../../middleware/validation.js"; // Temporarily commented out
 
 const router = express.Router();
 

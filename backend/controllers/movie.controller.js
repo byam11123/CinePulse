@@ -22,9 +22,6 @@ export async function getMovieTrailers(req, res, next) {
     );
     res.json({ success: true, trailers: data.results });
   } catch (error) {
-    if (error.message.includes("404")) {
-      return res.status(404).json({ success: false, message: "Movie trailers not found" });
-    }
     next(error);
   }
 }
@@ -37,9 +34,6 @@ export async function getMovieDetails(req, res, next) {
     );
     res.json({ success: true, content: data });
   } catch (error) {
-    if (error.message.includes("404")) {
-      return res.status(404).json({ success: false, message: "Movie not found" });
-    }
     next(error);
   }
 }

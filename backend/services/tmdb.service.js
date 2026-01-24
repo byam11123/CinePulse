@@ -4,16 +4,18 @@ import logger from "../utils/logger.js";
 import { getCache, setCache } from "../utils/cache.js";
 import { AppError } from "../utils/errors.js";
 
+const MAX_RETRIES = 3;
+const COOLDOWN_MS = 1000;
+const AXIOS_TIMEOUT = 10000; // 10 seconds
+
 export const fetchFromTMDB = async (url) => {
   try {
     // Check cache first
     const cachedData = await getCache(url);
     if (cachedData) {
-      // logger.info("TMDB Cache Hit", { url });
       return cachedData;
     }
 
-    // Check if TMDB_API_KEY is available
     if (!ENV_VARS.TMDB_API_KEY) {
       logger.error("TMDB_API_KEY is not set in environment variables");
       throw new Error("TMDB API key is not configured");
@@ -24,21 +26,40 @@ export const fetchFromTMDB = async (url) => {
         accept: "application/json",
         Authorization: "Bearer " + ENV_VARS.TMDB_API_KEY,
       },
+      timeout: AXIOS_TIMEOUT,
     };
 
-    const response = await axios.get(url, options);
+    let response;
+    let attempt = 0;
 
-    if (response.status !== 200) {
-      logger.error("TMDB API request failed", {
-        url,
-        status: response.status,
-        statusText: response.statusText
-      });
-      throw new AppError(`Failed to fetch data from TMDB: ${response.statusText}`, response.status);
+    // Retry logic
+    while (attempt < MAX_RETRIES) {
+      try {
+        response = await axios.get(url, options);
+        break; // Success, exit loop
+      } catch (err) {
+        attempt++;
+        // If it's the last attempt or a 4xx error (client error), don't retry, throw immediately
+        // Exception: 429 Might actually want to retry, but usually we respect the header.
+        // For 404/400/401, retrying won't help.
+        if (
+          attempt >= MAX_RETRIES ||
+          (err.response && err.response.status >= 400 && err.response.status < 500 && err.response.status !== 429)
+        ) {
+          throw err;
+        }
+
+        // Wait before retrying (exponential backoff could be used here, but simple linear for now)
+        logger.warn(`Retrying TMDB request (${attempt}/${MAX_RETRIES}) for ${url}`, { error: err.message });
+        await new Promise(resolve => setTimeout(resolve, COOLDOWN_MS));
+      }
     }
 
-    // Cache the successful response for 1 hour (3600 seconds)
-    // Adjust TTL based on requirements, but 1 hour seems reasonable for trending/lists
+    if (!response) {
+      throw new Error("Request failed after retries");
+    }
+
+    // Cache the successful response
     await setCache(url, response.data, 3600);
 
     return response.data;
@@ -50,20 +71,22 @@ export const fetchFromTMDB = async (url) => {
       responseStatus: error.response?.status
     });
 
-    // If it's an axios error with a response, propagate the status code
     if (error.response) {
       throw new AppError(
-        `TMDB Error: ${error.response.statusText || error.message}`, 
+        `TMDB Error: ${error.response.statusText || error.message}`,
         error.response.status
       );
     }
 
-    // Re-throw if it's already an AppError
     if (error instanceof AppError) {
       throw error;
     }
 
-    // Fallback for other errors
+    // Handle Timeouts explicitly
+    if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
+      throw new AppError('Upstream Service Timeout', 504);
+    }
+
     throw new AppError(error.message, 500);
   }
 };

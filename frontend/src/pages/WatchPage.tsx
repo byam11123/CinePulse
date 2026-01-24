@@ -18,6 +18,7 @@ const WatchPage = () => {
   const [trailers, setTrailers] = useState<Trailer[]>([]);
   const [currentTrailersIdx, setCurrentTrailerIdx] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
+  const [trailersLoading, setTrailersLoading] = useState<boolean>(true);
   const [videoError, setVideoError] = useState<boolean>(false);
   const [playerKey, setPlayerKey] = useState<number>(0); // Key to force remount of ReactPlayer
   const [content, setContent] = useState<ContentItem | null>(null);
@@ -35,6 +36,7 @@ const WatchPage = () => {
   useEffect(() => {
     const getTrailers = async () => {
       try {
+        setTrailersLoading(true);
         const res = await apiClient.get(`/${contentType}/${id}/trailers`);
         if (res.data.trailers && Array.isArray(res.data.trailers)) {
           // Filter only YouTube trailers that are official and allow embedding
@@ -60,11 +62,9 @@ const WatchPage = () => {
           setTrailers([]);
         }
       } catch (error: any) {
-        if (error.message.includes("404")) {
-          setTrailers([]);
-        } else {
-          setTrailers([]);
-        }
+        setTrailers([]);
+      } finally {
+        setTrailersLoading(false);
       }
     };
     getTrailers();
@@ -75,9 +75,7 @@ const WatchPage = () => {
         const res = await apiClient.get(`/${contentType}/${id}/similar`);
         setSimilarContent(res.data.similar);
       } catch (error: any) {
-        if (error.message.includes("404")) {
-          setSimilarContent([]);
-        }
+        setSimilarContent([]);
       }
     };
     getSimilarContent();
@@ -159,9 +157,8 @@ const WatchPage = () => {
         {trailers.length > 0 && (
           <div className="flex justify-between items-center mb-4">
             <button
-              className={`bg-gray-500/70 hover:bg-gray-500 text-white py-2 px-4 rounded ${
-                currentTrailersIdx === 0 ? "opacity-50 cursor-not-allowed " : ""
-              }}`}
+              className={`bg-gray-500/70 hover:bg-gray-500 text-white py-2 px-4 rounded ${currentTrailersIdx === 0 ? "opacity-50 cursor-not-allowed " : ""
+                }}`}
               disabled={currentTrailersIdx === 0}
               onClick={handlePrev}
             >
@@ -171,11 +168,10 @@ const WatchPage = () => {
               {content?.title || content?.name || "Movie/TV Show"}
             </div> */}
             <button
-              className={`bg-gray-500/70 hover:bg-gray-500 text-white py-2 px-4 rounded ${
-                currentTrailersIdx === trailers.length - 1
-                  ? "opacity-50 cursor-not-allowed "
-                  : ""
-              }}`}
+              className={`bg-gray-500/70 hover:bg-gray-500 text-white py-2 px-4 rounded ${currentTrailersIdx === trailers.length - 1
+                ? "opacity-50 cursor-not-allowed "
+                : ""
+                }}`}
               disabled={currentTrailersIdx === trailers.length - 1}
               onClick={handleNext}
             >
@@ -184,7 +180,9 @@ const WatchPage = () => {
           </div>
         )}
         <div className="aspect-video mb-8 p-2 sm:px-10 md:px-32">
-          {trailers.length > 0 ? (
+          {trailersLoading ? (
+            <div className="w-full h-full bg-gray-800 rounded-lg animate-pulse shimmer"></div>
+          ) : trailers.length > 0 ? (
             trailers[currentTrailersIdx] ? (
               trailers[currentTrailersIdx].key ? (
                 !videoError ? (

@@ -83,6 +83,10 @@ app.use(globalErrorHandler);
 
 app.listen(PORT, async () => {
   console.log(`Server running in ${ENV_VARS.NODE_ENV} mode on port ${PORT}`);
+  console.log('Environment Variables Debug:', {
+    NODE_ENV: ENV_VARS.NODE_ENV,
+    IS_PROD: ENV_VARS.NODE_ENV === 'production'
+  });
 
   try {
     // Connect to database first

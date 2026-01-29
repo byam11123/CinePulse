@@ -1,7 +1,8 @@
 import express from "express";
-
 import dotenv from "dotenv";
 import path from "path";
+import { fileURLToPath } from "url";
+import fs from "fs";
 import {
   authRoutes,
   movieRoutes,
@@ -28,19 +29,17 @@ import {
   apiVersioning,
   handleDeprecatedVersion,
 } from "./middleware/apiVersioning.js";
-import { sanitizeAllInputs } from "./middleware/validation.js";
 
 dotenv.config();
 
 const app = express();
-const PORT = ENV_VARS.PORT;
-const __dirname = path.resolve();
+
+// ✅ Fix: Proper __dirname for ES modules on Vercel
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Logging middleware
 app.use(requestLogger);
-
-// Input sanitization middleware - temporarily disabled due to issues
-// app.use(sanitizeAllInputs);
 
 // API versioning middleware
 app.use(apiVersioning);
@@ -56,13 +55,11 @@ app.use(cookieParser());
 
 // Conditionally apply rate limiting based on environment
 if (ENV_VARS.NODE_ENV === "production") {
-  // Apply rate limiting in production
   app.use("/api/v1/auth", authRateLimiter, authRoutes);
   app.use("/api/v1/movie", apiRateLimiter, protectRoute, movieRoutes);
   app.use("/api/v1/tv", apiRateLimiter, protectRoute, tvRoutes);
   app.use("/api/v1/search", apiRateLimiter, protectRoute, searchRoutes);
 } else {
-  // Skip rate limiting in development for easier testing
   app.use("/api/v1/auth", authRoutes);
   app.use("/api/v1/movie", protectRoute, movieRoutes);
   app.use("/api/v1/tv", protectRoute, tvRoutes);
@@ -71,52 +68,72 @@ if (ENV_VARS.NODE_ENV === "production") {
 
 app.use("/api/v1/health", healthRoutes);
 
-// Static file serving for production
-if (ENV_VARS.NODE_ENV === "production") {
-  app.use(express.static(path.join(__dirname, "/frontend/dist")));
+// ✅ Fix: Static file serving for Vercel (check if dist exists)
+const staticPath = path.join(__dirname, "..", "frontend", "dist");
+if (ENV_VARS.NODE_ENV === "production" && fs.existsSync(staticPath)) {
+  app.use(express.static(staticPath));
 
-  // Serve frontend for all routes in production (except API)
+  // Serve frontend for all non-API routes
   app.get(/^(?!\/api\/)/, (req, res) => {
-    res.sendFile(path.resolve(__dirname, "frontend", "dist", "index.html"));
+    res.sendFile(path.join(staticPath, "index.html"));
   });
-} else {
-  // In development, don't serve frontend files
-  // API routes will be handled normally
 }
 
-// Catch-all route for undefined API routes
+// Catch-all for undefined API routes
 app.use((req, res, next) => {
   if (req.originalUrl.startsWith("/api/")) {
     notFoundHandler(req, res, next);
-  } else {
-    // For non-API routes in development, return a simple message
+  } else if (ENV_VARS.NODE_ENV !== "production") {
     res.status(404).json({
       success: false,
       message: "Page not found. Frontend is served separately in development.",
     });
+  } else {
+    // In production without frontend files, return JSON error
+    res
+      .status(404)
+      .json({ success: false, message: "Frontend build not found" });
   }
 });
 
-// Global error handler - this must be the last middleware
+// Global error handler
 app.use(globalErrorHandler);
 
-app.listen(PORT, async () => {
-  console.log(`Server running in ${ENV_VARS.NODE_ENV} mode on port ${PORT}`);
-  console.log("Environment Variables Debug:", {
-    NODE_ENV: ENV_VARS.NODE_ENV,
-    IS_PROD: ENV_VARS.NODE_ENV === "production",
-  });
+// ✅ Fix: Database & Redis connection singleton for serverless
+let isConnected = false;
+const connectOnce = async () => {
+  if (!isConnected) {
+    try {
+      await connectDB();
 
-  try {
-    // Connect to database first
-    await connectDB();
+      // Optional: Initialize Redis if available
+      try {
+        await initializeRedis();
+      } catch (redisError) {
+        console.log(
+          "Redis initialization skipped or failed:",
+          redisError.message,
+        );
+        // Don't fail if Redis isn't available
+      }
 
-    // Initialize Redis cache after DB connection
-    await initializeRedis();
-
-    console.log("Database and cache initialized successfully");
-  } catch (error) {
-    console.error("Failed to initialize database or cache:", error);
-    process.exit(1);
+      isConnected = true;
+      console.log("Database initialized successfully");
+    } catch (error) {
+      console.error("Database connection failed:", error);
+      throw error;
+    }
   }
-});
+};
+
+// ✅ Fix: Connect immediately for serverless cold start
+connectOnce();
+
+// ✅ Fix: Only start server locally (Vercel doesn't use app.listen)
+if (ENV_VARS.NODE_ENV !== "production") {
+  app.listen(PORT, () => {
+    console.log(`Server running in ${ENV_VARS.NODE_ENV} mode on port ${PORT}`);
+  });
+}
+
+export default app;

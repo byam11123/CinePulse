@@ -6,7 +6,7 @@ import fs from "fs";
 import { connectDB } from "./config/db.js";
 import cookieParser from "cookie-parser";
 
-// Safe imports with error handling
+// Import routes (adjust paths as needed)
 let authRoutes, movieRoutes, tvRoutes, searchRoutes, healthRoutes;
 try {
   const routes = await import("./routes/index.js");
@@ -19,18 +19,19 @@ try {
   console.error("Routes import error:", e.message);
 }
 
-// Load env vars
 dotenv.config();
 
 const app = express();
+
+// Setup __dirname for ES modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Essential middleware
+// Middleware
 app.use(express.json());
 app.use(cookieParser());
 
-// CORS for Vercel
+// CORS
 app.use((req, res, next) => {
   res.header("Access-Control-Allow-Origin", "*");
   res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE");
@@ -38,70 +39,69 @@ app.use((req, res, next) => {
   next();
 });
 
-// Health check FIRST (so we know if server is up)
-app.get("/api/v1/health", (req, res) => {
-  res.json({ status: "ok", timestamp: new Date().toISOString() });
-});
-
-// Test route
+// API Routes FIRST
 app.get("/api/test", (req, res) => {
-  res.json({ message: "API working", path: __dirname });
+  res.json({ message: "API working", timestamp: new Date().toISOString() });
 });
 
-// API Routes (only if imports succeeded)
-if (authRoutes) app.use("/api/v1/auth", authRoutes);
 if (healthRoutes) app.use("/api/v1/health", healthRoutes);
+if (authRoutes) app.use("/api/v1/auth", authRoutes);
+if (movieRoutes) app.use("/api/v1/movie", movieRoutes);
+if (tvRoutes) app.use("/api/v1/tv", tvRoutes);
+if (searchRoutes) app.use("/api/v1/search", searchRoutes);
 
-// Static files - check multiple possible paths
-const possiblePaths = [
-  path.join(__dirname, "..", "frontend", "dist"),
-  path.join(__dirname, "..", "..", "frontend", "dist"),
-  path.join(process.cwd(), "frontend", "dist"),
-  "/var/task/frontend/dist"  // Vercel sometimes uses this
-];
+// Static files - check path
+const staticPath = path.join(__dirname, "..", "frontend", "dist");
+console.log("Static path:", staticPath, "Exists:", fs.existsSync(staticPath));
 
-let staticPath = null;
-for (const p of possiblePaths) {
-  if (fs.existsSync(p)) {
-    staticPath = p;
-    console.log("Found frontend at:", p);
-    break;
-  }
-}
-
-if (staticPath) {
+if (fs.existsSync(staticPath)) {
+  // Serve static files
   app.use(express.static(staticPath));
-  app.get("*", (req, res, next) => {
-    if (req.url.startsWith("/api/")) return next();
+
+  // ✅ FIXED: Use app.use instead of app.get("*", ...)
+  app.use((req, res, next) => {
+    // Skip API routes
+    if (req.url.startsWith("/api/")) {
+      return next();
+    }
+    // Serve index.html for everything else (SPA)
     res.sendFile(path.join(staticPath, "index.html"));
   });
 } else {
-  console.log("Frontend dist not found, serving API only");
   app.get("/", (req, res) => res.json({
-    message: "API Server Running",
-    pathsChecked: possiblePaths,
-    cwd: process.cwd(),
-    dirname: __dirname
+    status: "API Server Running",
+    frontend: "Not found at " + staticPath
   }));
 }
 
-// Error handler
-app.use((err, req, res, next) => {
-  console.error("Error:", err);
-  res.status(500).json({ error: err.message });
+// 404 for API routes
+app.use((req, res) => {
+  if (req.url.startsWith("/api/")) {
+    res.status(404).json({ success: false, message: "API endpoint not found" });
+  } else {
+    res.status(404).send("Not found");
+  }
 });
 
-// Connect DB (but don't crash if it fails)
-let dbConnected = false;
-connectDB()
-  .then(() => { dbConnected = true; console.log("DB Connected"); })
-  .catch(err => console.error("DB Connection Error:", err.message));
-
-// Export for Vercel
-export default app;
+// Connect DB
+let isConnected = false;
+const connectOnce = async () => {
+  if (!isConnected) {
+    try {
+      await connectDB();
+      isConnected = true;
+      console.log("DB Connected");
+    } catch (err) {
+      console.error("DB Error:", err.message);
+    }
+  }
+};
+connectOnce();
 
 // Local dev only
 const PORT = process.env.PORT || 5000;
 if (process.env.NODE_ENV !== "production") {
-  app.listen(PORT, () => console.log(`Local server on port ${PORT}`));
+  app.listen(PORT, () => console.log(`Server on port http://localhost:${PORT}`));
 }
+
+export default app;

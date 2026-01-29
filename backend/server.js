@@ -34,6 +34,9 @@ dotenv.config();
 
 const app = express();
 
+// ✅ Fix: Define PORT
+const PORT = ENV_VARS.PORT || 5000;
+
 // ✅ Fix: Proper __dirname for ES modules on Vercel
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -68,72 +71,66 @@ if (ENV_VARS.NODE_ENV === "production") {
 
 app.use("/api/v1/health", healthRoutes);
 
-// ✅ Fix: Static file serving for Vercel (check if dist exists)
+// ✅ Fix: Static file serving - MOVED BEFORE error handlers
 const staticPath = path.join(__dirname, "..", "frontend", "dist");
-if (ENV_VARS.NODE_ENV === "production" && fs.existsSync(staticPath)) {
+if (fs.existsSync(staticPath)) {
+  // Serve static files
   app.use(express.static(staticPath));
 
-  // Serve frontend for all non-API routes
-  app.get(/^(?!\/api\/)/, (req, res) => {
+  // Serve index.html for all non-API routes (SPA support)
+  app.get("*", (req, res, next) => {
+    if (req.url.startsWith("/api/")) {
+      return next();
+    }
     res.sendFile(path.join(staticPath, "index.html"));
   });
 }
 
 // Catch-all for undefined API routes
 app.use((req, res, next) => {
-  if (req.originalUrl.startsWith("/api/")) {
+  if (req.url.startsWith("/api/")) {
     notFoundHandler(req, res, next);
-  } else if (ENV_VARS.NODE_ENV !== "production") {
-    res.status(404).json({
-      success: false,
-      message: "Page not found. Frontend is served separately in development.",
-    });
   } else {
-    // In production without frontend files, return JSON error
-    res
-      .status(404)
-      .json({ success: false, message: "Frontend build not found" });
+    next();
   }
 });
 
 // Global error handler
 app.use(globalErrorHandler);
 
-// ✅ Fix: Database & Redis connection singleton for serverless
+// ✅ Fix: Simplified DB connection - don't block requests
 let isConnected = false;
-const connectOnce = async () => {
+const connectDBOnce = async () => {
   if (!isConnected) {
     try {
       await connectDB();
+      console.log("MongoDB Connected");
 
-      // Optional: Initialize Redis if available
+      // Optional: Initialize Redis
       try {
         await initializeRedis();
+        console.log("Redis Connected");
       } catch (redisError) {
-        console.log(
-          "Redis initialization skipped or failed:",
-          redisError.message,
-        );
-        // Don't fail if Redis isn't available
+        console.log("Redis skipped:", redisError.message);
       }
 
       isConnected = true;
-      console.log("Database initialized successfully");
     } catch (error) {
-      console.error("Database connection failed:", error);
-      throw error;
+      console.error("DB Connection Error:", error);
+      isConnected = false;
     }
   }
 };
 
-// ✅ Fix: Connect immediately for serverless cold start
-connectOnce();
+// Start DB connection in background (don't wait)
+connectDBOnce();
 
-// ✅ Fix: Only start server locally (Vercel doesn't use app.listen)
+// ✅ Fix: Export for Vercel
+export default app;
+
+// ✅ Fix: Only listen locally
 if (ENV_VARS.NODE_ENV !== "production") {
   app.listen(PORT, () => {
-    console.log(`Server running in ${ENV_VARS.NODE_ENV} mode on port ${PORT}`);
+    console.log(`Server running on port ${PORT}`);
   });
 }
-
-export default app;
